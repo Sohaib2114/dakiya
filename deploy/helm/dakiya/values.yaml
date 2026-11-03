@@ -11,7 +11,9 @@ worker:
 postgres:
   image: postgres:latest
   user: dakiya
-  password: dakiya_prod_2024!
+  # The password is not stored here. Create the Secret before installing:
+  #   kubectl create secret generic dakiya-db --from-literal=password="$(openssl rand -hex 16)"
+  existingSecret: dakiya-db
   database: dakiya
 
 redis:

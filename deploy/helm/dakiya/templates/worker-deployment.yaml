@@ -18,3 +18,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: dakiya-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: password

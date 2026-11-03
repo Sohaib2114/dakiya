@@ -5,7 +5,7 @@ services:
     image: postgres:latest
     environment:
       POSTGRES_USER: dakiya
-      POSTGRES_PASSWORD: dakiya_prod_2024!
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
       POSTGRES_DB: dakiya
     ports:
       - "5432:5432"
