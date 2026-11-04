@@ -1,0 +1,16 @@
+# Everything is pinned (actions by commit, images by sha, pip by version).
+# Dependabot opens a pull request when a newer version is out, so pins do not go stale.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directories: [/api, /worker]
+    schedule: { interval: weekly }
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: pip
+    directories: [/api, /worker]
+    schedule: { interval: weekly }
