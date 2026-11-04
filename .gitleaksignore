@@ -1,0 +1,8 @@
+# Old leaks in Bilal's commits. Treated as compromised and rotated (README findings).
+# Listed so CI passes on old history; any NEW secret still fails the scan.
+81e0a24c865e493dd4f11cf56c17580957acd4d7:deploy/helm/dakiya/values.yaml:password-assignment:14
+dd48d59656f598a2d387d3c3bad2c1cc5ba7d689:.env:password-assignment:5
+dd48d59656f598a2d387d3c3bad2c1cc5ba7d689:.env:password-assignment:8
+dd48d59656f598a2d387d3c3bad2c1cc5ba7d689:api/app/config.py:password-env-default:7
+dd48d59656f598a2d387d3c3bad2c1cc5ba7d689:docker-compose.yml:password-assignment:8
+dd48d59656f598a2d387d3c3bad2c1cc5ba7d689:worker/worker.py:password-env-default:16
