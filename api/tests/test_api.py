@@ -39,6 +39,10 @@ def test_root():
     assert client.get("/").json() == {"service": "dakiya-api"}
 
 
+def test_healthz():
+    assert client.get("/healthz").json() == {"status": "ok"}
+
+
 def test_scan_is_queued():
     fake = FakeRedis()
     app.dependency_overrides[get_redis] = lambda: fake
