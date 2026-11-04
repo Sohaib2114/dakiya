@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -10,10 +9,8 @@ from pydantic import BaseModel
 
 from . import config, db
 
-os.makedirs(os.path.dirname(config.LOG_FILE), exist_ok=True)
 logging.basicConfig(
-    filename=config.LOG_FILE,
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
 log = logging.getLogger("dakiya")

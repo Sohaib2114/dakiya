@@ -10,5 +10,3 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 QUEUE_NAME = "scans"
-
-LOG_FILE = os.getenv("LOG_FILE", "logs/api.log")
