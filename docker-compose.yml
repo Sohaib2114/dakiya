@@ -13,8 +13,6 @@ services:
     restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
 
   redis:
     image: redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5
@@ -24,8 +22,6 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
-    ports:
-      - "6379:6379"
 
   api:
     build: ./api
