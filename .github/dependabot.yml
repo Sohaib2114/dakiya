@@ -20,3 +20,7 @@ updates:
   - package-ecosystem: pip
     directories: [/api, /worker]
     schedule: { interval: weekly }
+    ignore:
+      # redis-py 8 adds a read timeout that crashes the idle worker; needs a worker code change first
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]
