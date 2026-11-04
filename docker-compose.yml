@@ -1,17 +1,27 @@
-version: "3"
-
 services:
   db:
     image: postgres:latest
     environment:
       POSTGRES_USER: dakiya
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
       POSTGRES_DB: dakiya
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dakiya -d dakiya"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
     ports:
       - "5432:5432"
 
   redis:
     image: redis:latest
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
     ports:
       - "6379:6379"
 
@@ -19,13 +29,21 @@ services:
     build: ./api
     env_file: .env
     ports:
-      - "8080:8000"
+      - "127.0.0.1:8080:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   worker:
     build: ./worker
     env_file: .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
