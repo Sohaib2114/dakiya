@@ -11,8 +11,9 @@ secretGroup = 1
 keywords = ["pass", "pwd"]
   [rules.allowlist]
   # code references and the .env.example placeholder are not secrets
-  # also skip values built by a shell command, like DB_PASSWORD=$(openssl rand -hex 16)
-  regexes = ['''^(?:os\.|config\.|change-me$)''', '''\$\(''']
+  # also skip values built by a shell command, like DB_PASSWORD=$(openssl rand -hex 16),
+  # and placeholders in docs, like --docker-password=<token>
+  regexes = ['''^(?:os\.|config\.|change-me$)''', '''\$\(''', '''^<[a-z-]+>''']
 
 [[rules]]
 id = "password-env-default"
