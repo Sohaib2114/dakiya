@@ -4,7 +4,8 @@ metadata:
   name: dakiya-api
 spec:
   selector:
-    app: dakia-api
+    app: dakiya-api
   ports:
-    - port: 80
-      targetPort: 8000
+    - name: http
+      port: 80
+      targetPort: http

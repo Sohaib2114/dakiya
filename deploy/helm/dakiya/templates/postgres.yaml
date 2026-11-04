@@ -1,8 +1,11 @@
+# StatefulSet + PersistentVolumeClaim: the data survives pod restarts and rescheduling
+# (the old chart used emptyDir, which is deleted with the pod).
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: dakiya-postgres
 spec:
+  serviceName: dakiya-postgres
   replicas: 1
   selector:
     matchLabels:
@@ -12,27 +15,47 @@ spec:
       labels:
         app: dakiya-postgres
     spec:
+      securityContext:
+        fsGroup: 999   # the "postgres" user in the image can write the volume
       containers:
         - name: postgres
           image: {{ .Values.postgres.image }}
           env:
             - name: POSTGRES_USER
               value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: password
-            - name: POSTGRES_DB
-              value: {{ .Values.postgres.database | quote }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           ports:
-            - containerPort: 5432
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}, "-d", {{ .Values.postgres.database | quote }}]
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          securityContext:
+            runAsUser: 999
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-      volumes:
-        - name: data
-          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgres.storage }}
 ---
 apiVersion: v1
 kind: Service
@@ -42,4 +65,5 @@ spec:
   selector:
     app: dakiya-postgres
   ports:
-    - port: 5432
+    - name: postgres
+      port: 5432

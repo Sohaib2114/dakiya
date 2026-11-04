@@ -1,0 +1,12 @@
+# During node maintenance (drain) keep at least one api pod running.
+{{- if gt (int .Values.api.replicas) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dakiya-api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: dakiya-api
+{{- end }}

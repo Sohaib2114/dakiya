@@ -1,20 +1,46 @@
+# Defaults for every deployment. Each folder in deploy/envs/ overrides what differs.
+
+image:
+  registry: ghcr.io/sohaib2114   # images built by CI: <registry>/dakiya-api and <registry>/dakiya-worker
+  tag: ""                        # required: set per environment (sha-<commit>)
+
+# Pull secret for private GHCR images. Create it once per namespace (see README).
+# If the images are public the secret is not needed and a missing one does no harm.
+imagePullSecrets:
+  - name: ghcr-pull
+
 api:
-  image: dakiya/api
-  tag: latest
   replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { memory: 256Mi }
 
 worker:
-  image: dakiya/worker
-  tag: latest
-  replicas: 3
+  replicas: 1
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 192Mi }
 
 postgres:
-  image: postgres:latest
+  image: postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
   user: dakiya
-  # The password is not stored here. Create the Secret before installing:
-  #   kubectl create secret generic dakiya-db --from-literal=password="$(openssl rand -hex 16)"
-  existingSecret: dakiya-db
   database: dakiya
+  # The password is never in git. Create the Secret before the first sync:
+  #   kubectl -n <namespace> create secret generic dakiya-db --from-literal=password="$(openssl rand -hex 16)"
+  existingSecret: dakiya-db
+  storage: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
 
 redis:
-  image: redis:latest
+  image: redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5
+  storage: 256Mi
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { memory: 128Mi }
+
+ingress:
+  enabled: true
+  className: traefik   # comes with k3s
+  host: dakiya.localhost
