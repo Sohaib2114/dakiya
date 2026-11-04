@@ -126,6 +126,10 @@ jobs:
         run: |
           tag="sha-${GITHUB_SHA::7}"
           yq -i ".image.tag = \"$tag\"" deploy/envs/staging/values.yaml
+          if git diff --quiet; then
+            echo "staging already runs $tag"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "staging: deploy $tag"
