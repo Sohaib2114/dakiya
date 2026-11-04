@@ -11,6 +11,12 @@ updates:
   - package-ecosystem: docker-compose
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      # a new major version of a database changes its data format: plan it, do not auto-propose it
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: pip
     directories: [/api, /worker]
     schedule: { interval: weekly }
