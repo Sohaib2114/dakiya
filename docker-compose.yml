@@ -16,6 +16,9 @@ services:
 
   redis:
     image: redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -52,3 +55,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:

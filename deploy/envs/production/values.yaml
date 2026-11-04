@@ -1,0 +1,11 @@
+# Production. Changed only by a reviewed pull request (copy the tag from staging).
+image:
+  tag: sha-57b78fe
+
+api:
+  replicas: 2
+worker:
+  replicas: 2
+
+ingress:
+  host: prod.dakiya.localhost

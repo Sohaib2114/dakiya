@@ -48,6 +48,17 @@ jobs:
           zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
           git --redact --no-banner .
 
+  chart:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Lint and render the chart for every environment (helm is on the runner)
+        run: |
+          for env in deploy/envs/*/; do
+            helm lint deploy/helm/dakiya -f "$env/values.yaml"
+            helm template dakiya deploy/helm/dakiya -f "$env/values.yaml" > /dev/null
+          done
+
   e2e:
     runs-on: ubuntu-24.04
     steps:
@@ -70,7 +81,7 @@ jobs:
         run: docker compose down -v
 
   build:
-    needs: [test, secret-scan, e2e]
+    needs: [test, secret-scan, chart, e2e]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -115,6 +126,10 @@ jobs:
         run: |
           tag="sha-${GITHUB_SHA::7}"
           yq -i ".image.tag = \"$tag\"" deploy/envs/staging/values.yaml
+          if git diff --quiet; then
+            echo "staging already runs $tag"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "staging: deploy $tag"

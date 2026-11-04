@@ -1,0 +1,16 @@
+# What Argo CD may do for Dakiya: read only this repo, deploy only into dakiya-* namespaces.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: dakiya
+  namespace: argocd
+spec:
+  description: Dakiya parcel tracking
+  sourceRepos:
+    - https://github.com/Sohaib2114/dakiya.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: dakiya-*
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace

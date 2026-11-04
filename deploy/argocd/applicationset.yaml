@@ -1,0 +1,38 @@
+# One Argo CD Application per folder in deploy/envs/. A new client = a new folder,
+# no change here. Each one deploys the chart with its folder's values into its own namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dakiya
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/Sohaib2114/dakiya.git
+        revision: main
+        directories:
+          - path: deploy/envs/*
+  template:
+    metadata:
+      name: "dakiya-{{.path.basename}}"
+    spec:
+      project: dakiya
+      source:
+        repoURL: https://github.com/Sohaib2114/dakiya.git
+        targetRevision: main
+        path: deploy/helm/dakiya
+        helm:
+          releaseName: dakiya
+          valueFiles:
+            - "../../envs/{{.path.basename}}/values.yaml"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "dakiya-{{.path.basename}}"
+      syncPolicy:
+        automated:
+          prune: true      # delete what was removed from git
+          selfHeal: true   # undo manual changes made with kubectl
+        syncOptions:
+          - CreateNamespace=true

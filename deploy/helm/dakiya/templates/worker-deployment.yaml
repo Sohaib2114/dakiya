@@ -12,9 +12,13 @@ spec:
       labels:
         app: dakiya-worker
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: worker
-          image: "{{ .Values.worker.image }}:{{ .Values.worker.tag }}"
+          image: {{ include "dakiya.image" (dict "root" . "name" "worker") }}
           envFrom:
             - configMapRef:
                 name: dakiya-config
@@ -24,3 +28,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: password
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          {{- include "dakiya.containerSecurity" . | nindent 10 }}

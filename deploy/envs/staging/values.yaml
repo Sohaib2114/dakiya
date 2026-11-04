@@ -2,3 +2,9 @@
 # Production and partner copy this tag through a reviewed pull request.
 image:
   tag: sha-57b78fe
+
+api:
+  replicas: 1
+
+ingress:
+  host: staging.dakiya.localhost

@@ -1,0 +1,11 @@
+# Retail partner's dedicated copy, in their private cloud: no inbound access from the
+# internet, so no ingress. Their Argo CD pulls this folder from git (see DESIGN.md).
+# Changed only by a reviewed pull request.
+image:
+  tag: sha-57b78fe
+
+api:
+  replicas: 2
+
+ingress:
+  enabled: false
