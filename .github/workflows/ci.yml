@@ -1,0 +1,122 @@
+# CI: test, scan for secrets, run the whole service once, build and scan the images,
+# push them to GHCR, then hand the new tag to GitOps (deploy/envs/staging).
+# This pipeline never deploys to a server or cluster: Argo CD pulls from git.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths-ignore:
+      - "deploy/envs/**"   # tag bumps from this pipeline: Argo CD deploys them, no rebuild needed
+      - "**.md"
+  workflow_dispatch:
+
+# Default for every job: read the code, nothing else. Jobs that need more ask for it.
+permissions:
+  contents: read
+
+# One run per branch. A new push to a PR cancels the old run; runs on main are never cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r api/requirements-dev.txt
+      - name: Unit tests
+        working-directory: api
+        run: pytest
+
+  secret-scan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # the whole history, not only the last commit
+      - name: gitleaks (uses .gitleaks.toml and .gitleaksignore)
+        run: >
+          docker run --rm -v "$PWD:/repo" -w /repo
+          zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          git --redact --no-banner .
+
+  e2e:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create .env with a throwaway password (exists only in this run)
+        run: |
+          cp .env.example .env
+          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 16)/" .env
+      - name: Start the service
+        run: docker compose up -d --build --wait
+      - name: Send scans and read a parcel back
+        run: |
+          python3 scripts/send_scans.py http://localhost:8080 | tee result.txt
+          grep -q '"status": "delivered"' result.txt
+      - name: Show logs if something failed
+        if: failure()
+        run: docker compose logs
+      - name: Clean up
+        if: always()
+        run: docker compose down -v
+
+  build:
+    needs: [test, secret-scan, e2e]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write   # push to GHCR with the built-in GITHUB_TOKEN, no stored password
+    strategy:
+      matrix:
+        service: [api, worker]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Image name
+        # GHCR needs a lowercase owner; the tag is the commit, so every image points to its code.
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/dakiya-${{ matrix.service }}:sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - name: Build
+        run: docker build -t "$IMAGE" ./${{ matrix.service }}
+      - name: Scan the image (fail on fixable HIGH or CRITICAL)
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+          image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE"
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: docker push "$IMAGE"
+
+  release-staging:
+    # Hand-off to GitOps: write the new tag into the staging folder. Argo CD sees the commit
+    # and deploys it. Production and partner only change through a reviewed pull request.
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # commit the tag bump
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Point staging at the new images
+        run: |
+          tag="sha-${GITHUB_SHA::7}"
+          yq -i ".image.tag = \"$tag\"" deploy/envs/staging/values.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "staging: deploy $tag"
+          git pull --rebase
+          git push
