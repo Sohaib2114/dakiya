@@ -73,6 +73,12 @@ jobs:
         run: |
           python3 scripts/send_scans.py http://localhost:8080 | tee result.txt
           grep -q '"status": "delivered"' result.txt
+      - name: Worker survives being idle (no restarts after 70s without scans)
+        run: |
+          sleep 70
+          restarts=$(docker inspect --format '{{.RestartCount}}' "$(docker compose ps -q worker)")
+          echo "worker restarts: $restarts"
+          test "$restarts" -eq 0
       - name: Show logs if something failed
         if: failure()
         run: docker compose logs
