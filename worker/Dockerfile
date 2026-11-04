@@ -1,9 +1,15 @@
-FROM python:latest
+# build stage: install dependencies into a venv
+FROM python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30 AS build
+RUN python -m venv /venv
+COPY requirements.txt .
+RUN /venv/bin/pip install --no-cache-dir -r requirements.txt
 
-RUN apt-get update && apt-get install -y gcc vim curl
-
+# runtime stage: only python, the venv and the code
+FROM python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30
+RUN useradd --uid 10001 --no-create-home app
+COPY --from=build /venv /venv
 WORKDIR /app
-COPY . .
-RUN pip install -r requirements.txt
-
+COPY --chmod=644 worker.py .
+ENV PATH=/venv/bin:$PATH PYTHONUNBUFFERED=1
+USER 10001
 CMD ["python", "worker.py"]

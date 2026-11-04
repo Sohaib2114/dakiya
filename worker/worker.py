@@ -13,7 +13,7 @@ conn = psycopg.connect(
     port=int(os.getenv("DB_PORT", "5432")),
     dbname=os.getenv("DB_NAME", "dakiya"),
     user=os.getenv("DB_USER", "dakiya"),
-    password=os.getenv("DB_PASSWORD", "dakiya_prod_2024!"),
+    password=os.environ["DB_PASSWORD"],  # no default: fail fast if it is missing
 )
 r = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379)
 

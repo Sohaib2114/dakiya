@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -10,10 +9,8 @@ from pydantic import BaseModel
 
 from . import config, db
 
-os.makedirs(os.path.dirname(config.LOG_FILE), exist_ok=True)
 logging.basicConfig(
-    filename=config.LOG_FILE,
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
 log = logging.getLogger("dakiya")
@@ -51,6 +48,25 @@ def get_db():
 @app.get("/")
 def root():
     return {"service": "dakiya-api"}
+
+
+@app.get("/healthz")
+def healthz():
+    # liveness: the process is running and answering
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+def readyz():
+    # readiness: the api can reach postgres and redis
+    try:
+        with db.connect() as conn:
+            conn.execute("SELECT 1")
+        get_redis().ping()
+    except Exception as exc:
+        log.warning("not ready: %s", exc)
+        raise HTTPException(status_code=503, detail="not ready")
+    return {"status": "ready"}
 
 
 @app.post("/scans", status_code=202)

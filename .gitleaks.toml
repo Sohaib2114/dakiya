@@ -1,0 +1,21 @@
+# Keep the built-in rules and add two for hand-made passwords,
+# which the defaults miss (they look for random-looking tokens).
+[extend]
+useDefault = true
+
+[[rules]]
+id = "password-assignment"
+description = "Password written in code, config or an env file"
+regex = '''(?i)(?:passw(?:or)?d|pwd)["']?\s*[:=]\s*["']?([^\s"'$\{][^\s"']{5,})'''
+secretGroup = 1
+keywords = ["pass", "pwd"]
+  [rules.allowlist]
+  # code references and the .env.example placeholder are not secrets
+  regexes = ['''^(?:os\.|config\.|change-me$)''']
+
+[[rules]]
+id = "password-env-default"
+description = "Password used as a fallback in os.getenv()"
+regex = '''(?i)getenv\(\s*["'][^"']*pass[^"']*["']\s*,\s*["']([^"']{6,})["']'''
+secretGroup = 1
+keywords = ["getenv"]

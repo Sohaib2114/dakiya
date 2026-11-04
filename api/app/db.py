@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS scans (
 
 
 def connect():
+    if not config.DB_PASSWORD:
+        raise RuntimeError("DB_PASSWORD is not set")
     return psycopg.connect(
         host=config.DB_HOST,
         port=config.DB_PORT,

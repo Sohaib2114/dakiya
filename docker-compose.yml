@@ -1,31 +1,54 @@
-version: "3"
-
 services:
   db:
-    image: postgres:latest
+    image: postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
     environment:
       POSTGRES_USER: dakiya
-      POSTGRES_PASSWORD: dakiya_prod_2024!
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
       POSTGRES_DB: dakiya
-    ports:
-      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dakiya -d dakiya"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
   redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
+    image: redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
 
   api:
     build: ./api
     env_file: .env
     ports:
-      - "8080:8000"
+      - "127.0.0.1:8080:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   worker:
     build: ./worker
     env_file: .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
