@@ -1,7 +1,7 @@
 # Staging. CI writes image.tag after every green build on main; Argo CD deploys it.
 # Production and partner copy this tag through a reviewed pull request.
 image:
-  tag: sha-6258755
+  tag: sha-2a3b76d
 api:
   replicas: 1
 ingress:
