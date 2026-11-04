@@ -1,0 +1,13 @@
+# Local test cluster: one k3s node inside Docker. k3s brings Traefik (ingress) and
+# local-path storage (PVCs), so nothing else needs installing.
+#   k3d cluster create --config deploy/k3d/cluster.yaml
+#   k3d cluster delete dakiya
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: dakiya
+servers: 1
+ports:
+  - port: 127.0.0.1:8081:80   # ingress on this laptop only; 8080 is used by docker compose
+    nodeFilters:
+      - loadbalancer
