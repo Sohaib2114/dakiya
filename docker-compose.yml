@@ -28,6 +28,11 @@ services:
     env_file: .env
     ports:
       - "127.0.0.1:8080:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
