@@ -3,15 +3,22 @@
 Scope: how the service stays up on Dakiya's two servers and in the partner's private cloud,
 how releases move at ten client deployments, and what we alert on.
 
+**Built and tested** on a local k3d cluster: the Helm chart, Argo CD, the three environments, self-heal, promotion by
+pull request, rolling updates under traffic. **Everything else here is a proposal** for the real servers, which I have
+not seen.
+
+**Assumptions** (to confirm with Dakiya and the partner): the partner's cloud has several zones, a managed PostgreSQL and
+Kubernetes; the partner allows outbound access to git and a registry; Dakiya can add one small VM and off-site storage.
+
 ## 1. High availability
 
 ### What fails first
 
-| Part | Today | What happens when it fails |
+| Part | In this repo today | What happens when it fails |
 |---|---|---|
 | PostgreSQL | one instance | **Single point of failure.** Reads (`GET /parcels`) fail, the worker cannot write. Scans are still accepted and wait in Redis. |
 | Redis | one instance, queue on disk (AOF) | `POST /scans` fails: depots and riders cannot send scans. Already-queued scans survive a restart. |
-| Server / node | everything on one host | Everything stops. |
+| Server / node | the Compose file runs everything on one host | Everything on that host stops. |
 | Worker | `BRPOP` then insert | If it dies between the two, that one scan is lost (app code, see README findings). Backlog grows while it is down but nothing else breaks. |
 | API | stateless | Any replica can serve; cheapest part to make redundant. |
 
@@ -24,8 +31,8 @@ two-node cluster that loses one node can lose the whole cluster. Options I would
 
 1. **Recommended: k3s with an external datastore, or a third small VM as the third server.** A cheap 2 GB VM
    (or one in the office) is enough to hold quorum. Then both big servers run workloads and either can fail.
-2. **No Kubernetes on-prem: Docker Compose on both servers** behind a load balancer (keepalived floating IP or
-   the existing router). The API runs on both; PostgreSQL primary on server A with a streaming replica on server B;
+2. **No Kubernetes on-prem: Docker Compose on both servers** behind a load balancer (keepalived floating IP).
+   The API runs on both; PostgreSQL primary on server A with a streaming replica on server B;
    Redis on A with AOF. Failover of the database is a documented manual step (promote the replica, move the IP).
    Simple, but failover is manual and takes minutes.
 
@@ -39,11 +46,11 @@ Either way:
 
 ### Partner's private cloud
 
-Their cloud gives us what Dakiya's servers do not: three availability zones and a managed database.
-- Their managed PostgreSQL (multi-AZ) instead of our StatefulSet: the chart gets `postgres.enabled: false` and
-  an external host. Backups and failover become their cloud's job.
+If their cloud offers several availability zones and a managed database (to confirm), it gives us what Dakiya's servers do not.
+- Their managed PostgreSQL (multi-AZ) instead of our StatefulSet: the chart would need a new `postgres.enabled: false`
+  option and an external host. Backups and failover would become their cloud's job.
 - Their Kubernetes (3+ nodes across zones), API replicas spread across zones, PDB.
-- No inbound access: their Argo CD **pulls** from git and their own registry mirror (section 2), nothing connects in.
+- No inbound access: their Argo CD would **pull** from git and their own registry mirror (section 2), so nothing connects in.
 
 ### Upgrades without downtime
 
@@ -73,26 +80,26 @@ between ten long-lived branches drifts and nobody knows what differs. Folders ma
 
 - **How a fix reaches every client.** The fix is merged to `main`, CI builds `sha-abc1234`, staging gets it
   automatically. Promotion is one pull request that sets `image.tag: sha-abc1234` in every client folder that should
-  get it. For a security fix that is all ten folders in one PR; normally a small script opens one PR per client so each
+  get it. For a security fix that is all ten folders in one PR; normally a small script (not written yet) would open one PR per client so each
   can be reviewed and merged on its own schedule. Production first, then partners.
 - **How one client stays on an older version.** Its folder keeps the old tag; nothing else to do. Today the chart
   itself comes from `main` for everyone, which is fine while all clients run the same chart. Before ten clients I would
   **publish the chart as a versioned OCI artifact** (`ghcr.io/.../charts/dakiya:0.3.0`) and let each folder pin
   both the chart version and the image tag. Then an old client is fully frozen, including templates.
-- **How updates reach a site with no inbound access.** Nothing pushes into the partner. The partner runs its own Argo
+- **How updates reach a site with no inbound access.** Nothing pushes into the partner. The partner would run its own Argo
   CD inside its network, with **outbound-only** access to: this git repo (read-only deploy key / fine-grained token,
   only its own folder via an AppProject), and the image registry (read-only token). If they allow no internet at all,
-  CI also pushes the signed images to a registry they mirror (Harbor or their cloud registry), and they mirror the
-  git repo; their Argo CD reads the mirror. Either way they control when changes come in and we never need a VPN
+  CI would also push the images (signed, once signing is added) to a registry they mirror (Harbor or their cloud registry),
+  and they would mirror the git repo for their Argo CD to read. Either way they control when changes come in and we never need a VPN
   into their network.
-- **Who can change what.** Branch protection on `main` (require a pull request and green CI), and `CODEOWNERS` so a
-  change under `deploy/envs/production/` or a partner folder needs approval from the release owner. CI's bot may only
-  write to `deploy/envs/staging/`.
+- **Who can change what (not set up yet).** Branch protection on `main` (require a pull request and green CI), and
+  `CODEOWNERS` so a change under `deploy/envs/production/` or a partner folder needs approval from the release owner.
+  Today this is a process: the pipeline only commits to `deploy/envs/staging/`, but nothing in GitHub enforces it.
 
 ## 3. Five alerts
 
-Metrics from Prometheus (kube-state-metrics, api request metrics, postgres_exporter, redis_exporter), alerts
-through Alertmanager to the on-call phone. Thresholds are a starting point, tuned after two weeks of real traffic.
+No monitoring is installed yet. Proposed: metrics from Prometheus (kube-state-metrics, api request metrics,
+postgres_exporter, redis_exporter), alerts through Alertmanager to whoever is on call. Thresholds are a starting point, tuned after two weeks of real traffic.
 
 | # | Alert | Threshold | Why it matters |
 |---|---|---|---|
@@ -102,7 +109,7 @@ through Alertmanager to the on-call phone. Thresholds are a starting point, tune
 | 4 | **API latency** | p95 of `GET /parcels/{id}` > 500 ms for 10 min | slow before it is broken: usually the database |
 | 5 | **Pods crash-looping / not ready** | any dakiya pod restarted > 3 times in 15 min, or a Deployment below desired replicas for 10 min | bad release or bad config; tells us to roll back |
 
-Plus one that is not about the app but would have saved this project: **backup check**, last successful database
+Plus one that is not about the app: **backup check**, last successful database
 backup older than 26 hours.
 
 ## Cost and operations
