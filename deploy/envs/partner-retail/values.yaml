@@ -2,7 +2,7 @@
 # internet, so no ingress. Their Argo CD pulls this folder from git (see DESIGN.md).
 # Changed only by a reviewed pull request.
 image:
-  tag: sha-2a3b76d
+  tag: sha-763b940
 
 api:
   replicas: 2
