@@ -15,7 +15,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   redis:
-    image: redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5
+    image: redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
