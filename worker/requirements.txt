@@ -1,2 +1,2 @@
-psycopg[binary]==3.3.7
+psycopg[binary]==3.3.8
 redis==7.4.1
